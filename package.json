@@ -1,0 +1,15 @@
+{
+  "name": "agent-integrations",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cross-platform agent integration toolkit",
+  "workspaces": [
+    "shared/*",
+    "discord/*"
+  ],
+  "scripts": {
+    "dev:voice": "npm run dev -w discord/voice-relay",
+    "start:voice": "npm start -w discord/voice-relay"
+  },
+  "license": "MIT"
+}
