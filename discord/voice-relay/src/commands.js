@@ -4,7 +4,7 @@ import { config } from './config.js';
 const PREFIX = '!';
 
 /**
- * Handle text commands (!join, !leave, !speak, !skip, !volume).
+ * Handle text commands (!join, !leave, !speak, !skip).
  * Returns true if the message was a command, false otherwise.
  */
 export async function handleCommand(message, tts) {
@@ -52,15 +52,15 @@ export async function handleCommand(message, tts) {
 /**
  * Speak text via TTS in the voice channel.
  */
-export async function speakText(text, tts, message) {
+export async function speakText(text, tts, replyTarget) {
   const truncated = text.slice(0, config.ttsMaxLength);
   try {
     const stream = await tts.stream(truncated);
     await playStream(stream);
   } catch (err) {
     console.error('[tts] Error:', err.message);
-    if (message) {
-      await message.reply(`TTS unavailable: ${err.message}`).catch(() => {});
+    if (replyTarget) {
+      await replyTarget.reply(`TTS unavailable: ${err.message}`).catch(() => {});
     }
   }
 }

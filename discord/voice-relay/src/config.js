@@ -15,8 +15,10 @@ export const config = {
   },
   autoJoin: env('AUTO_JOIN', 'true') === 'true',
   autoSpeak: env('AUTO_SPEAK', 'true') === 'true',
-  ttsMaxLength: parseInt(env('TTS_MAX_LENGTH', '500'), 10),
-  apiPort: parseInt(env('API_PORT', '3100'), 10),
+  ttsMaxLength: intEnv('TTS_MAX_LENGTH', 500),
+  messageDebounceMs: intEnv('MESSAGE_DEBOUNCE_MS', 2000),
+  apiHost: env('API_HOST', '127.0.0.1'),
+  apiPort: intEnv('API_PORT', 3100),
 };
 
 function env(key, fallback) {
@@ -25,4 +27,13 @@ function env(key, fallback) {
     throw new Error(`Missing required env var: ${key}`);
   }
   return val ?? fallback;
+}
+
+function intEnv(key, fallback) {
+  const raw = env(key, String(fallback));
+  const n = parseInt(raw, 10);
+  if (Number.isNaN(n)) {
+    throw new Error(`Env var ${key} must be a number, got: ${raw}`);
+  }
+  return n;
 }

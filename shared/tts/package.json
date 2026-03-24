@@ -7,7 +7,5 @@
   "scripts": {
     "test": "node --test src/*.test.js"
   },
-  "dependencies": {
-    "elevenlabs": "^1.0.0"
-  }
+  "dependencies": {}
 }
