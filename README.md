@@ -4,7 +4,7 @@ Cross-platform integration blocks for AI agents.
 
 `agent-integrations` turns text-first agents into platform-native experiences. Instead of coupling one agent runtime to one chat surface, this repo treats integrations as composable relays: Discord today, more transports tomorrow, shared streaming utilities underneath.
 
-The first production path is a Discord voice relay for `Meowfis`, powered by Alma and ElevenLabs. Meowfis owns the conversation. The relay watches the final stabilized reply, converts it to speech, and speaks it in a Discord voice channel with a zero-temp-file streaming pipeline.
+The first production path is a Discord voice relay. A watched agent bot owns the conversation in text. The relay watches the final stabilized reply, converts it to speech via ElevenLabs v3, and plays it in a Discord voice channel with a zero-temp-file streaming pipeline.
 
 ## Why This Exists
 
@@ -24,7 +24,6 @@ This repository is intentionally provider-agnostic.
 
 It can sit behind:
 
-- Alma
 - Anthropic / Claude-based agents
 - OpenAI-based agents
 - Gemini-based agents
@@ -39,7 +38,7 @@ The repo is organized as an npm workspace monorepo.
 
 | Module | Status | Purpose |
 |---|---|---|
-| `shared/tts` | Implemented | Streaming TTS abstraction, currently using ElevenLabs over direct REST streaming |
+| `shared/tts` | Implemented | Streaming TTS abstraction, currently using ElevenLabs v3 over direct REST |
 | `discord/voice-relay` | Implemented | Discord bot that turns finalized agent replies into live voice playback |
 | `telegram/voice-relay` | Planned | Telegram voice delivery using the same shared TTS layer |
 | `discord/music-relay` | Planned | Ambient audio or music playback controlled by agents or text commands |
@@ -50,7 +49,7 @@ The system is split into clean layers:
 
 ```text
 Agent Provider / Orchestrator
-  Alma, Claude, OpenAI, Gemini, local models, custom runners
+  Claude, OpenAI, Gemini, local models, custom runners
                 │
                 ▼
 Message Finalization Layer
@@ -82,17 +81,17 @@ The first module is a dedicated Discord speaker bot for a single private guild.
 
 ### Runtime Model
 
-- `Meowfis` posts a placeholder reply in a text channel.
-- Alma streams the response by editing that same Discord message.
+- The watched agent bot posts a placeholder reply in a text channel.
+- The agent streams its response by editing that same Discord message.
 - The voice relay watches `messageCreate` and `messageUpdate`.
 - Every edit resets a debounce timer.
 - When the message stops changing for about 2 seconds, the relay captures the final text.
-- The final text is streamed to ElevenLabs.
-- `ffmpeg` converts streamed MP3 to Discord-compatible audio.
+- The final text is sent to ElevenLabs v3 TTS (with audio tag support).
+- `ffmpeg` converts the MP3 stream to Discord-compatible PCM audio.
 - The bot plays the result in the configured voice channel.
 
 ```text
-Meowfis placeholder
+agent placeholder
         │
         ▼
 streamed message edits
@@ -101,10 +100,10 @@ streamed message edits
 debounce until stable
         │
         ▼
-final text
+final text (may include [audio tags])
         │
         ▼
-ElevenLabs streaming TTS
+ElevenLabs v3 TTS
         │
         ▼
 ffmpeg transcode
@@ -137,7 +136,7 @@ Platform adapters should stay thin. Shared logic like TTS clients and stream uti
 
 ### Local-First Control Plane
 
-The current HTTP control path is designed for same-machine invocation. That keeps the trust boundary small and makes Alma-to-relay orchestration simple.
+The current HTTP control path is designed for same-machine invocation. That keeps the trust boundary small and makes agent-to-relay orchestration simple.
 
 ### Operational Simplicity
 
@@ -150,8 +149,8 @@ This project is not trying to be complex on day one, but it is designed so redun
 | Concern | Current Approach | Future Block |
 |---|---|---|
 | Agent delivery stability | Debounce on `messageUpdate` until output is stable | Explicit final-response hooks from providers or bridges |
-| TTS provider dependency | ElevenLabs streaming | Fallback providers such as Edge TTS or local Piper |
-| Discord bot identity | Dedicated `Meowfis Voice` bot | Hot spare bot identity if the primary token is rotated or disabled |
+| TTS provider dependency | ElevenLabs v3 streaming | Fallback providers such as Edge TTS or local Piper |
+| Discord bot identity | Dedicated speaker bot | Hot spare bot identity if the primary token is rotated or disabled |
 | Playback path | Single in-process queue for one guild | Externalized job queue or active/passive relay workers |
 | Control plane exposure | Localhost-only API | Authenticated remote API if external callers are added |
 | Runtime recovery | Process-local reconnect and replay behavior | Supervisor-managed restart, health probes, circuit breakers |
@@ -189,7 +188,7 @@ Create `discord/voice-relay/.env` from `discord/voice-relay/.env.example`, then 
 
 - Discord bot token for the dedicated voice bot
 - Guild, text channel, and voice channel IDs
-- The watched Meowfis bot user ID
+- The watched agent bot user ID
 - ElevenLabs API key and voice configuration
 
 Run the voice relay:
@@ -208,9 +207,9 @@ npm run start:voice
 
 The Discord voice relay supports three control paths:
 
-- Automatic speech from finalized Meowfis replies
+- Automatic speech from finalized agent replies
 - Discord commands such as `!join`, `!leave`, `!speak`, and `!skip`
-- A localhost HTTP API for Alma-side orchestration
+- A localhost HTTP API for programmatic orchestration
 
 The HTTP API is intentionally local-only by default:
 
@@ -219,18 +218,16 @@ The HTTP API is intentionally local-only by default:
 
 This keeps the first deployment simple and safe. If remote callers are added later, authentication should be added before widening the bind address.
 
-## Why This Is Bigger Than One Bot
+## ElevenLabs v3 Audio Tags
 
-The long-term value here is not just "Discord voice for one agent."
+The TTS layer uses ElevenLabs `eleven_v3`, which supports expressive audio tags inline in text. Tags are placed in square brackets and affect roughly the next 4-5 words before reverting to normal tone.
 
-The real asset is a reusable integration architecture:
+- Emotions: `[excited]` `[sad]` `[sarcastic]` `[curious]` `[nervous]` `[frustrated]`
+- Actions: `[laughs]` `[whispers]` `[sighs]` `[crying]` `[snorts]` `[exhales]`
+- Pacing: `[slow]` `[fast]`
+- Effects: `[applause]` `[explosion]` `[clapping]`
 
-- one agent can gain multiple delivery surfaces
-- one platform can support multiple providers
-- one TTS layer can serve multiple relays
-- one local orchestrator can coordinate the whole system
-
-That makes `agent-integrations` useful far beyond Alma or Meowfis. It is a pattern for turning model output into reliable, human-facing presence.
+No code changes needed — tags go directly in the text field sent to `/speak` or written by the watched agent bot.
 
 ## Roadmap
 
