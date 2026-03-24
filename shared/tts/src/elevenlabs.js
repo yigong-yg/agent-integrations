@@ -11,7 +11,7 @@ export class ElevenLabsTTS {
     if (!apiKey) throw new Error('ElevenLabs API key is required');
     this.#apiKey = apiKey;
     this.#defaultVoiceId = voiceId || 'EXAVITQu4vr4xnSDxMaL'; // Bella
-    this.#defaultModelId = modelId || 'eleven_multilingual_v2';
+    this.#defaultModelId = modelId || 'eleven_v3';
   }
 
   /**
